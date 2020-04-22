@@ -2,11 +2,11 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Series on Baymax</title>
-    <link>https://example.com/series/</link>
+    <link>https://baymaxhwy.github.io/series/</link>
     <description>Recent content in Series on Baymax</description>
     <generator>Hugo -- gohugo.io</generator>
     
-        <atom:link href="https://example.com/series/index.xml" rel="self" type="application/rss+xml" />
+        <atom:link href="https://baymaxhwy.github.io/series/index.xml" rel="self" type="application/rss+xml" />
     
     
   </channel>
