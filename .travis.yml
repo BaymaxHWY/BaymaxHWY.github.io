@@ -8,7 +8,8 @@ branches:
 
 install:
   # 安装最新的hugo
-  - go get github.com/gohugoio/hugo 
+  - wget https://github.com/gohugoio/hugo/releases/download/v0.69.1/hugo_0.69.1_Linux-64bit.deb
+  - sudo dpkg -i hugo*.deb
 
 script:
   # 运行hugo命令
