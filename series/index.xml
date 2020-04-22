@@ -9,5 +9,14 @@
         <atom:link href="https://baymaxhwy.github.io/series/index.xml" rel="self" type="application/rss+xml" />
     
     
+    <item>
+      <title>Raft总结</title>
+      <link>https://baymaxhwy.github.io/2020/04/mit6.824-raft/</link>
+      <pubDate>Wed, 22 Apr 2020 00:00:00 +0000</pubDate>
+      
+      <guid>https://baymaxhwy.github.io/2020/04/mit6.824-raft/</guid>
+      <description>前言 这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把</description>
+    </item>
+    
   </channel>
 </rss>
