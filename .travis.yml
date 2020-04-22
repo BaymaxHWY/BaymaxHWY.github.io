@@ -1,9 +1,9 @@
 language: go
 
-env:
-  global:
-    - GO111MODULE=on
-    - GOPROXY=https://goproxy.cn,direct
+# env:
+#   global:
+#     - GO111MODULE=on
+#     - GOPROXY=https://goproxy.cn,direct
 # Specify which branches to build using a safelist
 # 分支白名单限制：只有 code 分支的提交才会触发构建
 branches:
@@ -12,9 +12,9 @@ branches:
 
 install:
   # 安装最新的hugo
-  - go get github.com/gohugoio/hugo
-  # - wget https://github.com/gohugoio/hugo/releases/download/v0.69.1/hugo_0.69.1_Linux-64bit.deb
-  # - sudo dpkg -i hugo*.deb
+  # - go get github.com/gohugoio/hugo
+  - wget https://github.com/gohugoio/hugo/releases/download/v0.69.1/hugo_0.69.1_Linux-64bit.deb
+  - sudo dpkg -i hugo*.deb
 
 script:
   # 运行hugo命令
