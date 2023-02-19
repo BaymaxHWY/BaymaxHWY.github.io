@@ -1,3 +1,12 @@
 [submodule "themes/pure"]
 	path = themes/pure
 	url = https://github.com/xiaoheiAh/hugo-theme-pure
+[submodule "themes/jane"]
+	path = themes/jane
+	url = https://github.com/xianmin/hugo-theme-jane.git
+[submodule "themes/LeaveIt"]
+	path = themes/LeaveIt
+	url = https://github.com/liuzc/LeaveIt.git
+[submodule "themes/hugo-paper"]
+	path = themes/hugo-paper
+	url = https://github.com/nanxiaobei/hugo-paper.git
