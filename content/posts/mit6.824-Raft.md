@@ -70,15 +70,15 @@ Raft是一个用于管理副本log的共识算法，它的功能类似于Paxos�
 
 ```go
 func (rf *Raft) attemptElection() {
-for !rf.killed() {
-	timeout := getRandTime() // 预定超时时间
-	time.Sleep(timeout)
-	if time.Since(rf.lastHeartMsg) > timeout && rf.state != Leader {
-		rf.mu.Unlock()
-		// 进行选举
-    go rf.kickOffElection()
-	} 
-}
+	for !rf.killed() {
+		timeout := getRandTime() // 预定超时时间
+		time.Sleep(timeout)
+		if time.Since(rf.lastHeartMsg) > timeout && rf.state != Leader {
+			rf.mu.Unlock()
+			// 进行选举
+		go rf.kickOffElection()
+		} 
+	}
 }
 ```
 
@@ -267,22 +267,22 @@ if rf.state == Leader {
 
 ```go
 for !rf.killed() {
-		time.Sleep(50 * time.Millisecond)
-		rf.mu.Lock()
-		for rf.commitIndex > rf.lastApplied {
-			rf.lastApplied += 1
-			applyLog := ApplyMsg{
-				CommandValid: true,
-				Command:      rf.log[rf.lastApplied].Command,
-				CommandIndex: rf.lastApplied,
-			}
-			rf.mu.Unlock()
-      // 这里最好不要加锁
-			rf.applyCh <- applyLog
-			rf.mu.Lock()
+	time.Sleep(50 * time.Millisecond)
+	rf.mu.Lock()
+	for rf.commitIndex > rf.lastApplied {
+		rf.lastApplied += 1
+		applyLog := ApplyMsg{
+			CommandValid: true,
+			Command:      rf.log[rf.lastApplied].Command,
+			CommandIndex: rf.lastApplied,
 		}
 		rf.mu.Unlock()
+	// 这里最好不要加锁
+		rf.applyCh <- applyLog
+		rf.mu.Lock()
 	}
+	rf.mu.Unlock()
+}
 ```
 
 ### 日志持久化（Lab2C）

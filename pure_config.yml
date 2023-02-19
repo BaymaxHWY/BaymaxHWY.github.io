@@ -96,8 +96,8 @@ params:
     avatar: avatar.jpg
     gravatar: # Gravatar email address, if you enable Gravatar, your avatar config will be overriden
     author: Baymax
-    author_title: 苦逼的研究生在读
-    author_description: 成为一个有独立思考能力的人
+    author_title: 苦逼的互联网打工人
+    author_description: 成为一个有快乐的人
     location: China
     follow: https://github.com/BaymaxHWY
     # Social Links
