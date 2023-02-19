@@ -7,12 +7,8 @@ on:
   pull_request:
 
 jobs:
-  deploy:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
+  build-and-deploy:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
@@ -25,10 +21,11 @@ jobs:
           hugo-version: '0.101.0'
 
       - name: Build
-        run: hugo --minify
+        run: hugo --minify --cleanDestinationDir
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GH_PAGE_ACTION_TOKEN }}
           publish_dir: ./public
+          publish_branch: gh-pages
