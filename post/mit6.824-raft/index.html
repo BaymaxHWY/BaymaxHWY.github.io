@@ -1,0 +1,237 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge,chrome=1"><title>Raft总结 - Baymax - Normal Coder</title><meta name=renderer content="webkit"><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta http-equiv=cache-control content="no-transform"><meta http-equiv=cache-control content="no-siteapp"><meta name=theme-color content="#f8f5ec"><meta name=msapplication-navbutton-color content="#f8f5ec"><meta name=apple-mobile-web-app-capable content="yes"><meta name=apple-mobile-web-app-status-bar-style content="#f8f5ec"><meta name=author content="baymax"><meta name=description content="前言 这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把"><meta name=keywords content="Hugo,theme,even"><meta name=generator content="Hugo 0.101.0 with theme even"><link rel=canonical href=https://baymaxhwy.github.io/post/mit6.824-raft/><link rel=apple-touch-icon sizes=180x180 href=/apple-touch-icon.png><link rel=icon type=image/png sizes=32x32 href=/favicon-32x32.png><link rel=icon type=image/png sizes=16x16 href=/favicon-16x16.png><link rel=manifest href=/manifest.json><link rel=mask-icon href=/safari-pinned-tab.svg color=#5bbad5><link href=/sass/main.min.2e81bbed97b8b282c1aeb57488cc71c8d8c8ec559f3931531bd396bf31e0d4dd.css rel=stylesheet><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin=anonymous><meta property="og:title" content="Raft总结"><meta property="og:description" content="前言 这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把"><meta property="og:type" content="article"><meta property="og:url" content="https://baymaxhwy.github.io/post/mit6.824-raft/"><meta property="article:section" content="post"><meta property="article:published_time" content="2020-04-22T00:00:00+00:00"><meta property="article:modified_time" content="2020-04-22T00:00:00+00:00"><meta itemprop=name content="Raft总结"><meta itemprop=description content="前言 这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把"><meta itemprop=datePublished content="2020-04-22T00:00:00+00:00"><meta itemprop=dateModified content="2020-04-22T00:00:00+00:00"><meta itemprop=wordCount content="6231"><meta itemprop=keywords content="MIT6.824,分布式系统,Golang,"><meta name=twitter:card content="summary"><meta name=twitter:title content="Raft总结"><meta name=twitter:description content="前言 这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把"><!--[if lte IE 9]><script src=https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js></script><![endif]--><!--[if lt IE 9]><script src=https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js></script>
+<script src=https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js></script><![endif]--></head><body><div id=mobile-navbar class=mobile-navbar><div class=mobile-header-logo><a href=/ class=logo>Baymax - Normal Coder</a></div><div class=mobile-navbar-icon><span></span>
+<span></span>
+<span></span></div></div><nav id=mobile-menu class="mobile-menu slideout-menu"><ul class=mobile-menu-list><a href=/><li class=mobile-menu-item>Home</li></a><a href=/post/><li class=mobile-menu-item>Archives</li></a><a href=/tags/><li class=mobile-menu-item>Tags</li></a><a href=/categories/><li class=mobile-menu-item>Categories</li></a><a href=/about/><li class=mobile-menu-item>About</li></a></ul></nav><div class=container id=mobile-panel><header id=header class=header><div class=logo-wrapper><a href=/ class=logo>Baymax - Normal Coder</a></div><nav class=site-navbar><ul id=menu class=menu><li class=menu-item><a class=menu-item-link href=/>Home</a></li><li class=menu-item><a class=menu-item-link href=/post/>Archives</a></li><li class=menu-item><a class=menu-item-link href=/tags/>Tags</a></li><li class=menu-item><a class=menu-item-link href=/categories/>Categories</a></li><li class=menu-item><a class=menu-item-link href=/about/>About</a></li></ul></nav></header><main id=main class=main><div class=content-wrapper><div id=content class=content><article class=post><header class=post-header><h1 class=post-title>Raft总结</h1><div class=post-meta><span class=post-time>2020-04-22</span></div></header><div class=post-toc id=post-toc><h2 class=post-toc-title>Contents</h2><div class="post-toc-content always-active"><nav id=TableOfContents><ul><li><ul><li><a href=#前言>前言</a></li><li><a href=#简介>简介</a><ul><li><a href=#共识算法---详细可以去看书>共识算法&mdash;详细可以去看书</a></li></ul></li><li><a href=#具体实现思路和伪代码>具体实现（思路和伪代码）</a><ul><li><a href=#领导选举lab2a>领导选举（Lab2A）</a></li><li><a href=#日志复制lab2b>日志复制（Lab2B）</a></li><li><a href=#日志持久化lab2c>日志持久化（Lab2C）</a></li></ul></li><li><a href=#总结>总结</a></li><li><a href=#参考资料>参考资料</a></li></ul></li></ul></nav></div></div><div class=post-content><h2 id=前言>前言</h2><p>这里是对MIT6.824课程中有关Raft部分的一些总结（包括一些个人的理解以及Lab2的实现思路等）。首先还是很感谢MIT的大牛们能把这门神课开源出来，让更多的人能更加系统的学习分布式系统（搭配《DDIA》效果更佳！）。</p><h2 id=简介>简介</h2><blockquote><p>因为需要遵守 Collaboration Policy 不能公布全部代码，主要是思路和伪代码。</p></blockquote><p>Raft是一个用于管理副本log的共识算法，它的功能类似于Paxos，但是比Paxos更简单（相对而言），更容易让人去理解学习，也容易在现实中实现。Raft主要有这几部分：领导选举、日志复制、集群变更、日志持久化、快照，本文只讨论与Lab2有关的部分。</p><h3 id=共识算法---详细可以去看书>共识算法&mdash;详细可以去看书</h3><blockquote><p>在6.824课程和《Raft》论文中对共识的阐释没有系统具体的阐释，这里主要是引用《DDIA》中的关于共识的部分内容：</p></blockquote><p>共识问题是分布式计算中最重要也是最基本的问题之一。共识其实就是让几个节点就某件事情达成一致。这样表面上看去不是太难，但是因为分布式系统本身就是不可靠的，存在各种问题、失败、故障（网络故障、进程暂停、时钟问题等），想让多个节点到达共识其实是存在很大的难度。</p><p>共识算法需要满足一些性质：</p><ul><li>协商一致性（Uniform agreement）：所有节点都接受相同的决议</li><li>诚实性（Integrity）：所有节点不能反悔，即对一项提议不能有两次决定</li><li>合法性（Validity）：如果决定了值v，则v一定由某个节点所提议</li><li>可终止性（Termination）：节点如果不崩溃则最终一定可以达成协议</li></ul><p>协商一致性和诚实性决定了共识算法的核心思想：<strong>决定一致的结果，一旦决定，就不能改变</strong>。合法性（有效性，书里面会混用，属于翻译问题）则是排除一些无意义的方案，例如值为空（NULL）。前三个主要是保障了安全性（Safety），而可终止性则是引入了容错的思想。</p><blockquote><p>2PC，两阶段提交也是共识算法但是不具有容错性，因为它的leader（独裁者、协调者）是人为指定的，也就没有可终止性，如果协调者故障则系统会一直原地空转</p></blockquote><p>最著名的容错共识算法包括：VSR、Paxos、Raft和Zab（Zookeeper），他们大都不是直接使用上面的形式化描述。相反，他们是决定了一系列值，然后采用全序关系广播算法。</p><h2 id=具体实现思路和伪代码>具体实现（思路和伪代码）</h2><h3 id=领导选举lab2a>领导选举（Lab2A）</h3><p>领导选举其实就是一次共识的过程，需要一个Candidate节点发起election让其与的节点来进行投票（vote）。</p><ol><li><p>首先这里先介绍一下Raft中每个节点能够扮演的角色：</p><ul><li>Follower：只负责接收Leader、Candidate的请求来进行响应，自身无法主动发起任何请求，但是会有一个election time，如果到期则会成为Candidate节点</li><li>Candidate：自身的term+1，重置election time，启动一个election vote活动，向集群中的所有节点发送vote请求，如果能在下一次election time到期之前获得大多数（Majority）节点的投票则会成为Leader（Candidate自己会投给自己），否则会开启新一轮的election</li><li>Leader：每个term最多只有一个Leader，Leader会定时向集群中的节点发送心跳包来阻止新一轮的选举，同时会接受client的请求并复制到Follower节点</li></ul></li><li><p>领导选举的整个流程：</p><p><img src=https://images-1253801505.cos.ap-nanjing.myqcloud.com/blog/image-20200419130504004.png alt></p><ul><li><p>首先所有节点初始化为Follower状态，并且设置election time（注意为了防止出现多个Candidate 的情况，需要在指定区间内随机time的值）</p></li><li><p>当time out时某个Follower会成为Candidate，开启一轮选举，如果获得大多数投票则选举成功，成为Leader，否则等待下一次time out开启新一轮选举。</p></li><li><p>Leader会以更短（比election time）的时间间隔向其他节点发送心跳包防止进行新选举</p></li></ul></li></ol><p>基本上需要按照论文中Figure2中的表示进行编写代码，不然容易出bug。这里需要注意的一点：</p><p>代码主要分为三部分：Election time超时机制，Candidate发起选举，<code>RequestVote</code> RPC处理</p><h4 id=election-time超时机制>Election time超时机制。</h4><p>首先每个Raft实例都会启动一个<code>attemptElection</code>的goroutine</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>rf</span> <span class=o>*</span><span class=nx>Raft</span><span class=p>)</span> <span class=nf>attemptElection</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=p>!</span><span class=nx>rf</span><span class=p>.</span><span class=nf>killed</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>timeout</span> <span class=o>:=</span> <span class=nf>getRandTime</span><span class=p>()</span> <span class=c1>// 预定超时时间
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=nx>time</span><span class=p>.</span><span class=nf>Sleep</span><span class=p>(</span><span class=nx>timeout</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>time</span><span class=p>.</span><span class=nf>Since</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>lastHeartMsg</span><span class=p>)</span> <span class=p>&gt;</span> <span class=nx>timeout</span> <span class=o>&amp;&amp;</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>state</span> <span class=o>!=</span> <span class=nx>Leader</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>			<span class=c1>// 进行选举
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>go</span> <span class=nx>rf</span><span class=p>.</span><span class=nf>kickOffElection</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span> 
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p><code>timeout</code>是在一个指定时间区间里一个随机值。</p><p>由于Lab2的讲义中建议不要使用<code>time.Timer</code> 或者 <code>time.Ticker</code>（因为容易出错），所以这里我使用用<code>time.Sleep</code>，并且会用<code>lastHeartMsg</code>来记录上一次更新的时间，用<code>time.Now() - lastHeartMsg</code>再和预定的超时时间（<code>timeout</code>）来进行比较。</p><p>这里有个小问题就是当该Raft节点成为Leader后这个goroutine还是会继续执行，但是不影响整体的结果，对于效率而言该goroutine大部分时间处理休眠状态不占用CPU，所以为了代码逻辑的简洁就这样实现了（其实是懒）</p><h4 id=candidate发起选举>Candidate发起选举。</h4><p>关于开启一轮新的选举的实现思路：</p><ul><li>首先需要更新节点的信息和状态（term、Candidate和votefor）</li><li>并发的向除自己外的所有节点发送请求</li><li>当获得大多数投票时停止其他请求（未完成），成为Leader</li></ul><p>这里的难点主要是并发发送请求，我的实现方式是遍历所有节点peer，对每个peer启动一个goroutine进行发送请求以及投票计数和leader转化</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=k>for</span> <span class=nx>i</span> <span class=o>:=</span> <span class=k>range</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>peers</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=k>if</span> <span class=nx>i</span> <span class=o>==</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>me</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=k>continue</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=k>go</span> <span class=kd>func</span><span class=p>(</span><span class=nx>x</span> <span class=kt>int</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>accept</span><span class=p>,</span> <span class=nx>acceptTerm</span> <span class=o>:=</span> <span class=nx>rf</span><span class=p>.</span><span class=nf>callRequestVote</span><span class=p>(</span><span class=nx>x</span><span class=p>,</span> <span class=nx>term</span><span class=p>,</span> <span class=nx>lastLogIndex</span><span class=p>,</span> <span class=nx>lastLogTerm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>acceptTerm</span> <span class=o>==</span> <span class=o>-</span><span class=mi>1</span> <span class=p>{</span> <span class=c1>// call rpc fail
+</span></span></span><span class=line><span class=cl><span class=c1></span>			<span class=k>return</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=k>defer</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=p>!</span><span class=nx>accept</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>if</span> <span class=nx>acceptTerm</span> <span class=p>&gt;</span> <span class=nx>term</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>rf</span><span class=p>.</span><span class=nf>convertToFollower</span><span class=p>(</span><span class=nx>acceptTerm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=p>}</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>voteCnt</span><span class=o>++</span>
+</span></span><span class=line><span class=cl>		<span class=k>if</span> <span class=nx>voteCnt</span> <span class=o>&lt;=</span> <span class=nb>len</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>peers</span><span class=p>)</span><span class=o>/</span><span class=mi>2</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=k>return</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 需要二次检查
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=k>if</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>state</span> <span class=o>==</span> <span class=nx>Candidate</span> <span class=o>&amp;&amp;</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>currentTerm</span> <span class=o>==</span> <span class=nx>term</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>rf</span><span class=p>.</span><span class=nf>convertToLeader</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=p>}(</span><span class=nx>i</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这里需要注意的是在发送请求进行rpc调用的时候不能加锁，不然可能这个rpc一直阻塞那么整个节点都会一直处于加锁状态。这里关于投票计数有两种方式（我了解到），一种是上述直接在每个goroutine中利用闭包的特性进行计数（不过需要加锁），另一种是使用条件变量<code>sync.Cond</code>在外部进行统计（个人觉得第一种方式更加简单）。</p><p>在转化成Leader时需要特判一下该节点是否还是Candidate以及currentTerm是否是发起这轮选举时记录的那个term，导致这种情况可能是因为这个Candidate已经成为了Follower或者因为网络延迟开启了新的一轮选举（接收到了上一轮请求的回复）</p><h4 id=requestvoterpc的处理><code>RequestVote</code>RPC的处理。</h4><p>主要就是确认是否要投票给这个Candidate。首先可以明确拒绝的情况有：</p><ul><li><code>args.Term &lt;= currentTerm</code></li><li>如果Candidate的日志没有比自己的日志<strong>up-to-date</strong>的话，即：比较最后一个log的term，如果相等则比较log的长度</li></ul><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=k>if</span> <span class=nx>lastLog</span><span class=p>.</span><span class=nx>Term</span> <span class=p>&gt;</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogTerm</span> <span class=o>||</span> <span class=p>(</span><span class=nx>lastLog</span><span class=p>.</span><span class=nx>Term</span> <span class=o>==</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogTerm</span> <span class=o>&amp;&amp;</span> <span class=nb>len</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>)</span><span class=o>-</span><span class=mi>1</span> <span class=p>&gt;</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogIndex</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>reply</span><span class=p>.</span><span class=nx>VoteGranted</span> <span class=p>=</span> <span class=kc>false</span>
+</span></span><span class=line><span class=cl>		<span class=k>return</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><p>这里有个需要注意的点就是关于该Raft节点的Election time的重置时机，需要时确定要投票给这个Candidate才要去重置，不然会导致日志比较落后的节点一直发起选举，而拥有最新日志的节点则一直被重置，最终无法选择出一个Leader</p><p>关于<code>RequestVote</code>RPC的处理中，不能投票给<code>args.Term == rf.currentTerm</code>的Candidate，不然可能会出现两个不断交替的Leader（由于某条网络连接故障）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl> <span class=kd>func</span> <span class=p>(</span><span class=nx>rf</span> <span class=o>*</span><span class=nx>Raft</span><span class=p>)</span> <span class=nf>RequestVote</span><span class=p>(</span><span class=nx>args</span> <span class=o>*</span><span class=nx>RequestVoteArgs</span><span class=p>,</span> <span class=nx>reply</span> 	<span class=o>*</span><span class=nx>RequestVoteReply</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl> <span class=c1>// 检查term
+</span></span></span><span class=line><span class=cl><span class=c1></span> <span class=k>if</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>currentTerm</span> <span class=o>&gt;=</span> <span class=nx>args</span><span class=p>.</span><span class=nx>Term</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 拒绝投票
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=k>return</span>
+</span></span><span class=line><span class=cl> <span class=p>}</span>
+</span></span><span class=line><span class=cl> <span class=c1>// 检查candidate的log是否比自己的更 up-to-date
+</span></span></span><span class=line><span class=cl><span class=c1></span> <span class=nx>lastLog</span> <span class=o>:=</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>[</span><span class=nb>len</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>)</span><span class=o>-</span><span class=mi>1</span><span class=p>]</span>
+</span></span><span class=line><span class=cl> <span class=k>if</span> <span class=nx>lastLog</span><span class=p>.</span><span class=nx>Term</span> <span class=p>&gt;</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogTerm</span> <span class=o>||</span> <span class=p>(</span><span class=nx>lastLog</span><span class=p>.</span><span class=nx>Term</span> <span class=o>==</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogTerm</span> <span class=o>&amp;&amp;</span> <span class=nb>len</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>)</span><span class=o>-</span><span class=mi>1</span> <span class=p>&gt;</span> <span class=nx>args</span><span class=p>.</span><span class=nx>LastLogIndex</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>   <span class=c1>// 拒绝投票
+</span></span></span><span class=line><span class=cl><span class=c1></span>   <span class=k>return</span>
+</span></span><span class=line><span class=cl> <span class=p>}</span>
+</span></span><span class=line><span class=cl> <span class=c1>// 投票给Candidate
+</span></span></span><span class=line><span class=cl><span class=c1></span> <span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=日志复制lab2b>日志复制（Lab2B）</h3><p>日志复制主要可以分为这么几个部分：</p><ol><li><p>接收上层的command命令；</p></li><li><p>Leader的心跳包和日志同步；</p></li><li><p><code>AppendEntries</code>RPC的处理；</p></li><li><p>应用日志结果（通知上层可以应用该command）</p></li></ol><p>日志复制需要实现：</p><ol><li>只有<code>commited</code>的日志项才能被上层程序应用；</li><li>只有被大多数节点复制备份的日志项才能被标记为<code>commited</code></li><li>需要保证所有节点的日志项被上层程序应用的顺序相同（这样才能保证所有节点最终会达到相同的state）</li></ol><p>日志复制示意图：</p><p><img src=https://images-1253801505.cos.ap-nanjing.myqcloud.com/blog/image-20200420154327676.png alt></p><h4 id=接收上层的command命令>接收上层的command命令</h4><p>这部分主要是完善Lab中已经给出的<code>Start</code>方法，需要定义一下日志（log）的数据结构，然后要注意只有Leader的节点才能执行<code>Start</code>方法，然后将上层给出的<code>command</code>构造成一个日志项加入到该节点的日志中</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=k>if</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>state</span> <span class=o>==</span> <span class=nx>Leader</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>index</span> <span class=p>=</span> <span class=nb>len</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>			<span class=nx>term</span> <span class=p>=</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>currentTerm</span>
+</span></span><span class=line><span class=cl>			<span class=nx>isLeader</span> <span class=p>=</span> <span class=kc>true</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>			<span class=nx>rf</span><span class=p>.</span><span class=nx>log</span> <span class=p>=</span> <span class=nb>append</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>,</span> <span class=nx>LogEntry</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>				<span class=nx>Term</span><span class=p>:</span>    <span class=nx>term</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>				<span class=nx>Command</span><span class=p>:</span> <span class=nx>command</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>			<span class=p>})</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h4 id=leader的心跳包和日志同步复制>Leader的心跳包和日志同步（复制）</h4><ol><li>心跳包主要是为了及时的重置其他节点（非Leader节点）的election time，防止发生新一轮的选举</li><li>日志同步是夹杂在心跳包之中（换句话说如果<code>AppendEntries</code>RPC的<code>args.Entries</code>属性为空就是心跳包，否则就是日志同步）</li></ol><blockquote><p>关于什么时候应该进行日志同步？</p></blockquote><p>在每一次心跳time到期的时候需要向其他所有节点并发发送请求（开goroutine进行RPC调用），这里在对于某个节点（编号<code>x</code>）发送之前需要检查对比一下<code>nextIndex[x]</code>和<code>log</code>的最后一项下标的大小，如果<code>log</code>最后一项下标<code>>= nextIndex[x]</code>则需要进行日志同步</p><p>这里有一个坑：就是当节点<code>x</code>日志同步成功时，关于更新<code>nextIndex[x]</code>和<code>matchIndex[x]</code>，不能直接将<code>nextIndex[x]</code>的值直接更新为<code>len(log)-1</code>因为在rpc调用的过程中这个节点是没有加锁的，那么<code>log</code>的长度可能会增加，所以应该用<code>len(args.Entries) + args.PrevLogIndex</code>来更新<code>nextIndex[x]</code>和<code>matchIndex[x]</code></p><p>当节点<code>x</code>日志同步失败（如果当前Leader节点已经<strong>退位</strong>的话就直接成为Follower，这里不讨论这种情况）的时候需要回滚<code>nextIndex[x]</code>，有很多方法，本文主要说两种：一项一项的回滚，快速回滚</p><ul><li><p>一项一项的回滚就是如果节点<code>x</code>调用失败，直接<code>nextIndex[x]--</code></p></li><li><p>快速回滚，在论文中只是稍微提及（作者似乎觉得不必要），但是<strong>Robert Tappan Morris</strong>教授（传奇大牛）课上说如果不进行快速回滚效率会很低（特别是当某个节点宕机很长时间后再进行日志同步），而且会过不了lab test。这里才用了<a href=https://thesquareplanet.com/blog/students-guide-to-raft/>TA的blog</a>中提起的方法：</p><ul><li><code>AppendEntries</code>当失败时会在<code>reply</code>中设置两个变量<code>ConflictTerm</code>和<code>ConflictIndex</code></li><li>首先在本节点<code>log</code>中查找是否有<code>log的term == ConflictTerm</code>，如果存在则将该<code>log中属于该term</code>的最后一项下标设置为<code>nextIndex[x]</code></li><li>如果没有找到则设置<code>nextIndex[x] = ConflictIndex</code></li></ul><p>关于<code>ConflictTerm</code>和<code>ConflictIndex</code>的设置在<code>AppendEntries</code>的处理会说明</p></li></ul><p>如果当日志同步到大多数节点时，Leader节点会更新自己的<code>commitIndex</code>，其值根据<code>matchIndex</code>数组决定，然后下一次心跳包发送的时候就带上这个<code>commitIndex</code></p><p><em>这部分是lab中的核心，很有意思就不贴代码了，每个人可以自己去设计自己的方案</em></p><h4 id=appendentriesrpc的处理><code>AppendEntries</code>RPC的处理</h4><p><code>AppendEntries</code>的处理主要分为三个部分：<code>log</code>一致性检查；<code>args.Entries</code>处理；更新<code>commitIndex</code></p><ul><li><code>log</code>一致性检查。主要是根据<code>PrevLogIndex</code>和<code>PrevLogTerm</code>检查自己和Leader的<code>log</code>是否一致（<code>args.Entries</code>之前的部分）<ul><li>如果本节点的<code>len(log) &lt;= PrevLogIndex</code>则说明不一致，并且设置<code>ConflictTerm = null，ConflictIndex = len(log)</code></li><li>如果本节点在<code>PrevLogIndex</code>位置上的<code>term != ConflictTerm </code>，则将<code>ConflictTerm = term</code>并且将<code>ConflictIndex</code>设置为<code>ConflictTerm</code>的第一项的索引下表</li></ul></li><li><code>args.Entries</code>处理。通过一致性检查的话，需要对<code>Entries</code>做两件事情：将本节点<code>log</code>中与<code>Entries</code>不一致的项给截断，同时需要过滤掉本节点<code>log</code>中已经存在的项（过滤重复项，主要是因为网络延迟等问题可能会接收到多个相同的请求）</li><li>更新<code>commitIndex</code>。通过一致性检查的话，如果<code>LeaderCommitIndex > 本节点的commitIndex</code>，那么需要更新本节点的<code>commitIndex</code>，这里需要注意不能直接更新成<code>LeaderCommitIndex</code>因为可能其值会大于本节点<code>len(log)</code>即<code>args.PrevLogIndex + len(args.Entries)</code>，所以需要更新为其中较小的那个值</li></ul><p><em>这部分是lab中的核心，很有意思就不贴代码了，每个人可以自己去设计自己的方案</em></p><h4 id=应用日志结果>应用日志结果</h4><p>应用日志结果在Lab2中就是将已经标记为<code>commited</code>的日志项通过<code>channel applyCh</code>进行传输。这里有一个属性<code>lastApplied</code>记录已经应用的项（防止重复传输）</p><p><code>lastApplied</code>的更新是通过比较<code>commitIndex</code>来更新，如果<code>rf.commitIndex > rf.lastApplied</code>则<code>rf.lastApplied += 1</code>，将<code>log[rf.lastApplied]</code>处的项传入<code>applyCh</code>通道中</p><p>这个和election time倒计时以及Leader的定时心跳包一样都是需要定时运行（在我的实现中）</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=k>for</span> <span class=p>!</span><span class=nx>rf</span><span class=p>.</span><span class=nf>killed</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>time</span><span class=p>.</span><span class=nf>Sleep</span><span class=p>(</span><span class=mi>50</span> <span class=o>*</span> <span class=nx>time</span><span class=p>.</span><span class=nx>Millisecond</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=k>for</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>commitIndex</span> <span class=p>&gt;</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>lastApplied</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>		<span class=nx>rf</span><span class=p>.</span><span class=nx>lastApplied</span> <span class=o>+=</span> <span class=mi>1</span>
+</span></span><span class=line><span class=cl>		<span class=nx>applyLog</span> <span class=o>:=</span> <span class=nx>ApplyMsg</span><span class=p>{</span>
+</span></span><span class=line><span class=cl>			<span class=nx>CommandValid</span><span class=p>:</span> <span class=kc>true</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>			<span class=nx>Command</span><span class=p>:</span>      <span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>[</span><span class=nx>rf</span><span class=p>.</span><span class=nx>lastApplied</span><span class=p>].</span><span class=nx>Command</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>			<span class=nx>CommandIndex</span><span class=p>:</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>lastApplied</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>		<span class=p>}</span>
+</span></span><span class=line><span class=cl>		<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// 这里最好不要加锁
+</span></span></span><span class=line><span class=cl><span class=c1></span>		<span class=nx>rf</span><span class=p>.</span><span class=nx>applyCh</span> <span class=o>&lt;-</span> <span class=nx>applyLog</span>
+</span></span><span class=line><span class=cl>		<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=p>}</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=日志持久化lab2c>日志持久化（Lab2C）</h3><blockquote><p>这里的思路和实现都比较简单，如果在2C test失败的话可能是由于2B的部分逻辑问题（比如没有考虑到一些网络阻塞的情况）</p></blockquote><p>Lab2C要求实现<code>persist</code>和<code>readPersist</code>两个方法，而且给出了例子这里就不多说了。在Lab中并没有真正的持久化到硬盘存储中，是在外部使用<code>Persister</code>结构来存储（说白了就是存在内存中，在测试的过程中只是重启了Raft程序的进程，没有重启整个test程序）</p><p>那么2C中只需要考虑<code>persist</code>的使用时机问题，可以分析需要持久化的属性，再根据代码实现中这些值作出变更的时候进行持久化。但是这里就需要注意加锁的问题，因为可能再Raft对应属性变更的时候已经加锁了，而<code>persist</code>又在内部需要加锁，这时候就要记得释放锁</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// persist的实现
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>rf</span> <span class=o>*</span><span class=nx>Raft</span><span class=p>)</span> <span class=nf>persist</span><span class=p>()</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>w</span> <span class=o>:=</span> <span class=nb>new</span><span class=p>(</span><span class=nx>bytes</span><span class=p>.</span><span class=nx>Buffer</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>e</span> <span class=o>:=</span> <span class=nx>labgob</span><span class=p>.</span><span class=nf>NewEncoder</span><span class=p>(</span><span class=nx>w</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span> <span class=c1>// 这里进行了加锁
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=nx>e</span><span class=p>.</span><span class=nf>Encode</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>currentTerm</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>e</span><span class=p>.</span><span class=nf>Encode</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>votedFor</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>e</span><span class=p>.</span><span class=nf>Encode</span><span class=p>(</span><span class=nx>rf</span><span class=p>.</span><span class=nx>log</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=nx>data</span> <span class=o>:=</span> <span class=nx>w</span><span class=p>.</span><span class=nf>Bytes</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>persister</span><span class=p>.</span><span class=nf>SaveRaftState</span><span class=p>(</span><span class=nx>data</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl><span class=c1>// persist的应用
+</span></span></span><span class=line><span class=cl><span class=c1>// 比如在RequestVote的实现中，可能需要更改本节点的currentTerm
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=kd>func</span> <span class=p>(</span><span class=nx>rf</span> <span class=o>*</span><span class=nx>Raft</span><span class=p>)</span> <span class=nf>RequestVote</span><span class=p>(</span><span class=nx>args</span> <span class=o>*</span><span class=nx>RequestVoteArgs</span><span class=p>,</span> <span class=nx>reply</span> <span class=o>*</span><span class=nx>RequestVoteReply</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=k>defer</span> <span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=c1>// 一些操作
+</span></span></span><span class=line><span class=cl><span class=c1></span>	<span class=nx>rf</span><span class=p>.</span><span class=nx>state</span> <span class=p>=</span> <span class=nx>Follower</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>currentTerm</span> <span class=p>=</span> <span class=nx>args</span><span class=p>.</span><span class=nx>Term</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nf>persist</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>	<span class=nx>rf</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>  <span class=c1>// 后续操作
+</span></span></span><span class=line><span class=cl><span class=c1></span><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h2 id=总结>总结</h2><p>这是我第二次做6.824，第一次的时候是三个月以前，感觉自己确实进步了很多，实际写代码的时候可能总共就三天吧，但是学到这里却用了将近一个月（自己也比较懒），主要的时间都在读论文、看视频、看相关的资料，因为大部分都是英文（自己英语比较差）所以花了很多时间，但是成效也很明显，英文文献阅读能力提高了很多（虽然还是需要借助翻译工具），这里推荐曹大的一篇<a href=https://xargin.com/how-to-learn/>blog</a></p><h2 id=参考资料>参考资料</h2><ul><li><a href=https://pdos.csail.mit.edu/6.824/schedule.html>mit6.824</a></li><li><a href=https://thesquareplanet.com/blog/students-guide-to-raft/>Students&rsquo; Guide to Raft</a></li><li><a href=https://www.qtmuniao.com/2020/01/18/raft-implement-points/>MIT 6.824 2020 Raft 实现细节备忘</a></li><li><a href=https://mr-dai.github.io/raft/>Raft总结</a></li></ul></div><div class=post-copyright><p class=copyright-item><span class=item-title>Author</span>
+<span class=item-content>baymax</span></p><p class=copyright-item><span class=item-title>LastMod</span>
+<span class=item-content>2020-04-22</span></p></div><footer class=post-footer><div class=post-tags><a href=/tags/mit6.824/>MIT6.824</a>
+<a href=/tags/%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F/>分布式系统</a>
+<a href=/tags/golang/>Golang</a></div><nav class=post-nav><a class=prev href=/post/mvcc/><i class="iconfont icon-left"></i>
+<span class="prev-text nav-default">深入理解 MVCC</span>
+<span class="prev-text nav-mobile">Prev</span></a></nav></footer></article></div></div></main><footer id=footer class=footer><div class=social-links><a href=heweiyu.me@gmail.com class="iconfont icon-email" title=email></a>
+<a href=https://github.com/BaymaxHWY class="iconfont icon-github" title=github></a>
+<a href=https://baymaxhwy.github.io/index.xml type=application/rss+xml class="iconfont icon-rss" title=rss></a></div><div class=copyright><span class=power-by>Powered by <a class=hexo-link href=https://gohugo.io>Hugo</a></span>
+<span class=division>|</span>
+<span class=theme-info>Theme -
+<a class=theme-link href=https://github.com/olOwOlo/hugo-theme-even>Even</a></span>
+<span class=copyright-year>&copy;
+2020 -
+2023<span class=heart><i class="iconfont icon-heart"></i></span><span>baymax</span></span></div></footer><div class=back-to-top id=back-to-top><i class="iconfont icon-up"></i></div></div><script src=https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/slideout@1.0.1/dist/slideout.min.js integrity="sha256-t+zJ/g8/KXIJMjSVQdnibt4dlaDxc9zXr/9oNPeWqdg=" crossorigin=anonymous></script>
+<script src=https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.js integrity="sha256-XVLffZaxoWfGUEbdzuLi7pwaUJv1cecsQJQqGLe7axY=" crossorigin=anonymous></script>
+<script type=text/javascript src=/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js></script></body></html>
