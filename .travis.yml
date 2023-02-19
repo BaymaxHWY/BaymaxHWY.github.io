@@ -1,32 +1,34 @@
-language: go
+name: GitHub Pages
 
-# env:
-#   global:
-#     - GO111MODULE=on
-#     - GOPROXY=https://goproxy.cn,direct
-# Specify which branches to build using a safelist
-# 分支白名单限制：只有 code 分支的提交才会触发构建
-branches:
-  only:
-    - code
+on:
+  push:
+    branches:
+      - code  # Set a branch to deploy
+  pull_request:
 
-install:
-  # 安装最新的hugo
-  # - go get github.com/gohugoio/hugo
-  - wget https://github.com/gohugoio/hugo/releases/download/v0.69.1/hugo_0.69.1_Linux-64bit.deb
-  - sudo dpkg -i hugo*.deb
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true  # Fetch Hugo themes (true OR recursive)
+          fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
 
-script:
-  # 运行hugo命令
-  - hugo
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: '0.91.2'
+          # extended: true
 
-deploy:
-  provider: pages # 重要，指定这是一份github pages的部署配置
-  skip-cleanup: true # 重要，不能省略
-  local-dir: public # 静态站点文件所在目录
-  target-branch: master # 要将静态站点文件发布到哪个分支
-  github-token: $GITHUB_TOKEN # 重要，$GITHUB_TOKEN是变量，需要在GitHub上申请、再到配置到Travis
-  # fqdn: blog.yuantops.com # 如果是自定义域名，此处要填
-  keep-history: true # 是否保持target-branch分支的提交记录
-  on:
-    branch: code # 博客源码的分支
+      - name: Build
+        run: hugo --minify
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
