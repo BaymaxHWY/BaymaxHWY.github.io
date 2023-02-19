@@ -13,11 +13,11 @@ tags: ["数据库", "并发控制", "隔离性"]
 
 ## MVCC 实现
 在论文中将 `MVCC` 的关键组件分为四个：`Protocol`、`Version Storage`、`GC（Garbage Collection）`和 `Index`，而 MVCC 所管理的逻辑对象可以是一个事务（`Transactions`）或者数据表的一行数据（`Tuple/Record`），一般都是以 `tuple` 为操作对象，下面都以 `tuple` 来介绍。`tuple` 的存储格式如下（不同 `protocol` 会有所区别）
-![Tuple 格式](../../resources/md_imgs/mvcc_tuple_format.png)
+![Tuple 格式](/img/mvcc/mvcc_tuple_format.png)
 ### 1. Protocol
 #### MVTO（Timestamp Ordering）
 `MVTO` 为每个事务分配一个唯一的时间戳($T_{id}$)，它会中止所有试图读/更新已经被设置 `write lock` 的 `version tuple`（当 `txn-id` 不等于 0 或者自己的 $T_{id}$ 时表示有其他事务持有 `write lock`）的事务。`MVTO` 协议的 `tuple header` 如下：
-![](../../resources/md_imgs/mvcc_mvto_tuple_header.png)
+![](/img/mvcc/mvcc_mvto_tuple_header.png)
 1. 对 `tuple A` 进行读操作：
    a. 搜索 `A` 的所有 `version` 中满足 begin-ts <= $T_{id}$ <= end-ts 
    b. 并且没有其他事务持有该 `version` 的 `write lock`，则可以读该 version 
@@ -32,7 +32,7 @@ tags: ["数据库", "并发控制", "隔离性"]
 
 #### MVOCC（Optimistic Concurrency Control）
 `MVOCC` 将事务分为三个阶段：`read phase`、`validation phase`、`write phase`
-![](../../resources/md_imgs/mvcc_mvocc_tuple_header.png)
+![](/img/mvcc/mvcc_mvocc_tuple_header.png)
 1. read phase：可以进行对 `tuple` 的读和更新操作
     a. 读只需要找到满足 begin-ts <= $T_{id}$ <= end-ts 的 `version` 就可以读
     b. 更新则需要 `tuple` 最新的 `version` 没有被加写锁并且同样会和 `MVTO` 一样创建新的 $B_{x+1}$ 的新 `version`，并且设置 $B_x.txn-id = T_{id}$（这里新创建的 $B_{x+1}$ 对其他事务**不可见**）
@@ -45,7 +45,7 @@ tags: ["数据库", "并发控制", "隔离性"]
 
 #### MV2PL（Two-phase Locking）
 `MV2PL` 每个事务会**预先申请**好其所需要读/写相关 `tuple` 的 `lock`，`write lock` 是 `txn-id`，`read-lock` 是 `read-cnt`，当事务中止或者提交时再释放所持有的锁 
-![](../../resources/md_imgs/mvcc_mv2pl_tuple_header.png)
+![](/img/mvcc/mvcc_mv2pl_tuple_header.png)
 1. 读 `tuple A` 获取 `read lock`：
     a. 搜索 `A` 的所有 `version` 中满足 begin-ts <= $T_{id}$ <= end-ts
     b. 没有其他事务持有该 `version` 的 `write lock`，则 `read-cnt + 1`
@@ -71,13 +71,13 @@ tags: ["数据库", "并发控制", "隔离性"]
 
 **write-skew(写倾斜)**
 在 MVCC 中不能保证串行化的协议天然会存在 write-skew 的情况，例如：当前两个医生值班，每天需要满足至少一个医生在岗值班其他医生才能请假，这时并发两个事务分别对两个医生进行请假，他们都先读取到了一个 `version` （有两个人值班），满足条件，然后都请假成功，最终不满足值班条件。
-<img src="../../resources/md_imgs/mvcc_write_skew.png"  width="500" height="400">
+<img src="/img/mvcc/mvcc_write_skew.png"  width="500" height="400">
 
 思考：
 1. `SSI` 和 `MV2PL` 的区别？
 ### 2. Version Storage
 `Version Storage` 是解决如何存储同一个 `tuple` 的多个 `version`，不同的方法之间对于读写性能的影响也不同，这里主要介绍四种方法。
-![](../../resources/md_imgs/mvcc_version_storage.png)
+![](/img/mvcc/mvcc_version_storage.png)
 1. **Append-only Storage**: 每个 `table` 中的所有 `tuple version` 都存储在同一空间中，同一个 `tuple` 的不同 `version` 构成单向链表（方便实现 `lock-free`），根据链表 `HEAD` 指向的 `version` 不同可以分为：`O2N`（Oldest-to-Newest） 和 `N2O` （Newest-to-Oldest）
 	   a. `O2N`：`HEAD` 指向最旧的 `version`，优点：新增 `version` 时不需要更新 `index`，缺点：查询最新 `version` 需要遍历链表
 	   b. `N2O`：`HEAD` 指向最新的 `version`，优点：查询最新 `version` 很快，缺点：新增 `version` 时需要更新 `index`
@@ -102,7 +102,7 @@ tags: ["数据库", "并发控制", "隔离性"]
 1. **Tuple-level GC**：对每个 `tuple` 检查 `version` 是否过期。具体有两种方案：1. 定期扫所有 `tuple`；2. 在事务运行查找 `version` 链表时检查（仅适用于 `O2N` 结构）
 2. **Transaction-level GC**：检查对象是一个事务中的创建的 `version`，当所有在事务 `T` 中被创建的 `versions` 对所有正在运行的事务不可见时那么称这个事务 `T` 过期了，其中的 `version` 被标记为无用
 
-![](../../resources/md_imgs/mvcc_gc.png)
+![](/img/mvcc/mvcc_gc.png)
 ### 4. Index
 索引分为主索引和二级索引，索引有 `key`、`value`，`value` 一般为指针
 **主索引**：`key` 为主键、`value` 为 `tuple`，索引更新根据不同的 `version storage` 不同，并且 `value` 不会改变
@@ -112,10 +112,10 @@ tags: ["数据库", "并发控制", "隔离性"]
 1. **Logical Pointer**：`value` 指向一个中间层，中间层提供为每个 `tuple` 设置一个 `identifier` 到 `tuple` 的 `version` 链表 `HEAD` 的映射关系，二级索引的 `value` 指向这个 `identifier`
 2. **Physical Pointer**：`value` 指向实际 `version tuple` 的地址
 
-![](../../resources/md_imgs/mvcc_index.png)
+![](/img/mvcc/mvcc_index.png)
 ### 总结
 论文上提供的一些流行 `DBMS` 的 `MVCC` 的实现
-![](../../resources/md_imgs/mvcc_dbms_impl.png)
+![](/img/mvcc/mvcc_dbms_impl.png)
 ## MVCC 与隔离性(isolation)
 ### 隔离性
 > 1. In database systems, isolation determines how transaction integrity is visible to other users and systems.
