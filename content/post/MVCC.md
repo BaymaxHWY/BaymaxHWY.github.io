@@ -2,7 +2,8 @@
 title: "深入理解 MVCC"
 date: "2023-02-13"
 draft: false
-tags: ["数据库", "并发控制", "隔离性"]
+tags: ["并发控制", "隔离性"]
+categories: ["数据库"]
 ---
 
 ## 前言

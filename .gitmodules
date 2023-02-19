@@ -10,3 +10,9 @@
 [submodule "themes/hugo-paper"]
 	path = themes/hugo-paper
 	url = https://github.com/nanxiaobei/hugo-paper.git
+[submodule "themes/themes/hugo-paper"]
+	path = themes/themes/hugo-paper
+	url = https://github.com/nanxiaobei/hugo-paper
+[submodule "themes/even"]
+	path = themes/even
+	url = https://github.com/olOwOlo/hugo-theme-even
