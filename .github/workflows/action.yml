@@ -3,7 +3,7 @@ name: github-page-auto-deploy
 on:
   push:
     branches:
-      - code  # Set a branch name to trigger deployment
+      - main  # Set a branch name to trigger deployment
   pull_request:
 
 jobs:
