@@ -1,7 +1,7 @@
 baseURL = "https://baymaxhwy.github.io/"
 languageCode = "en-us"
 title = "hwy的小窝"
-theme = "LeaveIt"
+theme = "paper"
 
 paginate = 12
 enableEmoji = true
